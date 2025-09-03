@@ -112,6 +112,24 @@ app.get("/api/alerts", async (req, res) => {
   }
 });
 
+app.post("/api/clear-alerts", async (req, res) => {
+  try {
+    const snapshot = await db.collection("alerts").get();
+    const batch = db.batch();
+    
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    res.send({ success: true });
+  } catch (err) {
+    console.error("Failed to clear alerts:", err);
+    res.status(500).send({ error: "Failed to clear alerts" });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
