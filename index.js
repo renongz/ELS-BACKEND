@@ -94,13 +94,24 @@ app.post("/api/send-alert", async (req, res) => {
 app.get("/api/alerts", async (req, res) => {
   try {
     const snapshot = await db.collection("alerts").orderBy("createdAt", "desc").get();
-    const alerts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const alerts = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        type: data.type,
+        message: data.message,
+        // Convert Firestore Timestamp to ISO string
+        createdAt: data.createdAt?.toDate().toISOString(),
+      };
+    });
     res.send(alerts);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: "Failed to fetch alerts" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
