@@ -4,22 +4,31 @@ const cors = require("cors");
 const admin = require("firebase-admin");
 
 // Initialize Firebase Admin
-const serviceAccount = require("./serviceAccountKey.json");
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  // Use environment variable for Render (JSON string)
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  // Fallback for local development
+  serviceAccount = require("./serviceAccountKey.json");
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-const db = admin.firestore(); // Firestore for alerts
+const db = admin.firestore();
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const PORT = 10000;
+const PORT = process.env.PORT || 10000;
 
 // ----------------------------
 // Store device tokens
 const tokensCollection = db.collection("deviceTokens");
+
 app.post("/api/register-token", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).send({ error: "Token missing" });
@@ -33,7 +42,6 @@ app.post("/api/register-token", async (req, res) => {
   }
 });
 
-// Unsubscribe token
 app.post("/api/unsubscribe", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).send({ error: "Token missing" });
@@ -47,15 +55,12 @@ app.post("/api/unsubscribe", async (req, res) => {
   }
 });
 
-// ----------------------------
-// Send alert (Admin)
 app.post("/api/send-alert", async (req, res) => {
-  const { type, message, name } = req.body; // type: "panic" or "suspicious"
+  const { type, message, name } = req.body;
   if (!type || !message || !name)
     return res.status(400).send({ error: "Missing fields" });
 
   try {
-    // Save alert in Firestore
     const alertRef = await db.collection("alerts").add({
       name,
       type,
@@ -63,12 +68,10 @@ app.post("/api/send-alert", async (req, res) => {
       createdAt: admin.firestore.Timestamp.now(),
     });
 
-    // Get all tokens
     const snapshot = await tokensCollection.get();
     const tokens = snapshot.docs.map((doc) => doc.id);
 
     if (tokens.length > 0) {
-      // Send FCM notification
       const payload = {
         notification: {
           title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
@@ -88,8 +91,6 @@ app.post("/api/send-alert", async (req, res) => {
   }
 });
 
-// ----------------------------
-// Fetch alerts (Student)
 app.get("/api/alerts", async (req, res) => {
   try {
     const snapshot = await db.collection("alerts").orderBy("createdAt", "desc").get();
@@ -101,7 +102,6 @@ app.get("/api/alerts", async (req, res) => {
   }
 });
 
-// ----------------------------
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });
