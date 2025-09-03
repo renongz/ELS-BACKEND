@@ -7,10 +7,8 @@ const admin = require("firebase-admin");
 let serviceAccount;
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-  // Use environment variable for Render (JSON string)
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } else {
-  // Fallback for local development
   serviceAccount = require("./serviceAccountKey.json");
 }
 
@@ -87,7 +85,11 @@ app.post("/api/send-alert", async (req, res) => {
       };
 
       // Send push notifications to all devices
-      const response = await admin.messaging().sendToDevice(tokens, payload);
+      const response = await admin.messaging().sendMulticast({
+        tokens: tokens,
+        ...payload,
+      });
+
       console.log(
         "Push notifications sent:",
         response.successCount,
@@ -115,7 +117,7 @@ app.get("/api/alerts", async (req, res) => {
         name: data.name,
         type: data.type,
         message: data.message,
-        createdAt: data.createdAt?.toDate().toISOString(), // Convert Firestore Timestamp to ISO
+        createdAt: data.createdAt?.toDate().toISOString(),
       };
     });
     res.send(alerts);
