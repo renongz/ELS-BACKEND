@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 10000;
 // Store device tokens
 const tokensCollection = db.collection("deviceTokens");
 
+// Register device token
 app.post("/api/register-token", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).send({ error: "Token missing" });
@@ -42,6 +43,7 @@ app.post("/api/register-token", async (req, res) => {
   }
 });
 
+// Unsubscribe device token
 app.post("/api/unsubscribe", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).send({ error: "Token missing" });
@@ -55,12 +57,14 @@ app.post("/api/unsubscribe", async (req, res) => {
   }
 });
 
+// Send alert
 app.post("/api/send-alert", async (req, res) => {
   const { type, message, name } = req.body;
   if (!type || !message || !name)
     return res.status(400).send({ error: "Missing fields" });
 
   try {
+    // Save alert to Firestore
     const alertRef = await db.collection("alerts").add({
       name,
       type,
@@ -68,25 +72,30 @@ app.post("/api/send-alert", async (req, res) => {
       createdAt: admin.firestore.Timestamp.now(),
     });
 
+    // Fetch all device tokens
     const snapshot = await tokensCollection.get();
     const tokens = snapshot.docs.map((doc) => doc.id);
 
     if (tokens.length > 0) {
-  const message = {
-    notification: {
-      title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
-      body: type === "panic"
-        ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-        : message,
-    },
-    tokens: tokens, // array of device tokens
-  };
+      const payload = {
+        notification: {
+          title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
+          body: type === "panic"
+            ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+            : message,
+        },
+      };
 
-  // Send push notification to multiple devices
-  const response = await admin.messaging().sendMulticast(message);
-  console.log("Push notifications sent:", response.successCount, "success,", response.failureCount, "failures");
-}
-
+      // Send push notifications to all devices
+      const response = await admin.messaging().sendToDevice(tokens, payload);
+      console.log(
+        "Push notifications sent:",
+        response.successCount,
+        "success,",
+        response.failureCount,
+        "failures"
+      );
+    }
 
     res.send({ success: true, id: alertRef.id });
   } catch (err) {
@@ -95,6 +104,7 @@ app.post("/api/send-alert", async (req, res) => {
   }
 });
 
+// Get alerts
 app.get("/api/alerts", async (req, res) => {
   try {
     const snapshot = await db.collection("alerts").orderBy("createdAt", "desc").get();
@@ -105,8 +115,7 @@ app.get("/api/alerts", async (req, res) => {
         name: data.name,
         type: data.type,
         message: data.message,
-        // Convert Firestore Timestamp to ISO string
-        createdAt: data.createdAt?.toDate().toISOString(),
+        createdAt: data.createdAt?.toDate().toISOString(), // Convert Firestore Timestamp to ISO
       };
     });
     res.send(alerts);
@@ -116,11 +125,12 @@ app.get("/api/alerts", async (req, res) => {
   }
 });
 
+// Clear all alerts
 app.post("/api/clear-alerts", async (req, res) => {
   try {
     const snapshot = await db.collection("alerts").get();
     const batch = db.batch();
-    
+
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
@@ -133,8 +143,7 @@ app.post("/api/clear-alerts", async (req, res) => {
   }
 });
 
-
-
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
 });
