@@ -72,17 +72,21 @@ app.post("/api/send-alert", async (req, res) => {
     const tokens = snapshot.docs.map((doc) => doc.id);
 
     if (tokens.length > 0) {
-      const payload = {
-        notification: {
-          title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
-          body:
-            type === "panic"
-              ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-              : message,
-        },
-      };
-      await admin.messaging().sendToDevice(tokens, payload);
-    }
+  const message = {
+    notification: {
+      title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
+      body: type === "panic"
+        ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+        : message,
+    },
+    tokens: tokens, // array of device tokens
+  };
+
+  // Send push notification to multiple devices
+  const response = await admin.messaging().sendMulticast(message);
+  console.log("Push notifications sent:", response.successCount, "success,", response.failureCount, "failures");
+}
+
 
     res.send({ success: true, id: alertRef.id });
   } catch (err) {
