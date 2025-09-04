@@ -56,6 +56,7 @@ app.post("/api/unsubscribe", async (req, res) => {
 });
 
 // Send alert
+// Send alert
 app.post("/api/send-alert", async (req, res) => {
   const { type, message, name } = req.body;
   if (!type || !message || !name)
@@ -76,25 +77,26 @@ app.post("/api/send-alert", async (req, res) => {
 
     if (tokens.length > 0) {
       const messaging = admin.messaging();
+
+      // ✅ Proper payload for sendEachForMulticast
       const payload = {
+        tokens, // pass tokens separately
         notification: {
-          title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
+          title: type === "panic" ? "🚨 Lockdown Alert!" : "⚠️ Suspicious Alert",
           body:
             type === "panic"
               ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
               : message,
         },
-        tokens: tokens,
+        data: {
+          type, // allows frontend to detect "panic" or "suspicious"
+        },
       };
 
-      // ✅ Use new API
       const response = await messaging.sendEachForMulticast(payload);
+
       console.log(
-        "Push notifications sent:",
-        response.successCount,
-        "success,",
-        response.failureCount,
-        "failures"
+        `Push notifications sent: ${response.successCount} success, ${response.failureCount} failures`
       );
     }
 
@@ -104,6 +106,7 @@ app.post("/api/send-alert", async (req, res) => {
     res.status(500).send({ error: "Failed to send alert" });
   }
 });
+
 
 // Get alerts
 app.get("/api/alerts", async (req, res) => {
