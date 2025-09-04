@@ -86,14 +86,15 @@ app.post("/api/send-alert", async (req, res) => {
               : message,
         },
         data: {
-          type, // 👈 Add alert type here for frontend & SW handling
+          type,       // Alert type for frontend/service worker
           message,
           name,
+          sound: type === "panic" ? "/pani.mp3" : "", // Play sound only for panic
         },
         tokens,
       };
 
-      // ✅ Send push notifications
+      // Send push notifications to all devices
       const response = await messaging.sendEachForMulticast(payload);
       console.log(
         "Push notifications sent:",
@@ -103,8 +104,7 @@ app.post("/api/send-alert", async (req, res) => {
         "failures"
       );
 
-
-      /////////////////////////// 🔥 Clean up invalid tokens
+      // Clean up invalid tokens
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const failedToken = tokens[idx];
@@ -121,9 +121,7 @@ app.post("/api/send-alert", async (req, res) => {
   }
 });
 
-
-
-
+// ----------------------------
 // Get alerts
 app.get("/api/alerts", async (req, res) => {
   try {
@@ -145,6 +143,7 @@ app.get("/api/alerts", async (req, res) => {
   }
 });
 
+// ----------------------------
 // Clear all alerts
 app.post("/api/clear-alerts", async (req, res) => {
   try {
@@ -163,6 +162,7 @@ app.post("/api/clear-alerts", async (req, res) => {
   }
 });
 
+// ----------------------------
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
