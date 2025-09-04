@@ -55,6 +55,7 @@ app.post("/api/unsubscribe", async (req, res) => {
   }
 });
 
+// ----------------------------
 // Send alert
 // Send alert
 app.post("/api/send-alert", async (req, res) => {
@@ -77,27 +78,38 @@ app.post("/api/send-alert", async (req, res) => {
 
     if (tokens.length > 0) {
       const messaging = admin.messaging();
-
-      // ✅ Proper payload for sendEachForMulticast
       const payload = {
-        tokens, // pass tokens separately
         notification: {
-          title: type === "panic" ? "🚨 Lockdown Alert!" : "⚠️ Suspicious Alert",
+          title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
           body:
             type === "panic"
               ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
               : message,
         },
         data: {
-          type, // allows frontend to detect "panic" or "suspicious"
+          type, // 👈 send type so SW can handle sound
         },
+        tokens,
       };
 
+      // Send push notifications
       const response = await messaging.sendEachForMulticast(payload);
-
       console.log(
-        `Push notifications sent: ${response.successCount} success, ${response.failureCount} failures`
+        "Push notifications sent:",
+        response.successCount,
+        "success,",
+        response.failureCount,
+        "failures"
       );
+
+      // 🔥 Clean up invalid tokens
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const failedToken = tokens[idx];
+          console.warn("Removing invalid token:", failedToken);
+          tokensCollection.doc(failedToken).delete().catch(console.error);
+        }
+      });
     }
 
     res.send({ success: true, id: alertRef.id });
@@ -106,6 +118,7 @@ app.post("/api/send-alert", async (req, res) => {
     res.status(500).send({ error: "Failed to send alert" });
   }
 });
+
 
 
 // Get alerts
