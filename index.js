@@ -57,7 +57,6 @@ app.post("/api/unsubscribe", async (req, res) => {
 
 // ----------------------------
 // Send alert
-// Send alert
 app.post("/api/send-alert", async (req, res) => {
   const { type, message, name } = req.body;
   if (!type || !message || !name)
@@ -80,19 +79,21 @@ app.post("/api/send-alert", async (req, res) => {
       const messaging = admin.messaging();
       const payload = {
         notification: {
-          title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
+          title: type === "panic" ? "🚨 Lockdown Alert!" : "⚠️ Suspicious Alert",
           body:
             type === "panic"
               ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
               : message,
         },
         data: {
-          type, // 👈 send type so SW can handle sound
+          type, // 👈 Add alert type here for frontend & SW handling
+          message,
+          name,
         },
         tokens,
       };
 
-      // Send push notifications
+      // ✅ Send push notifications
       const response = await messaging.sendEachForMulticast(payload);
       console.log(
         "Push notifications sent:",
@@ -102,7 +103,8 @@ app.post("/api/send-alert", async (req, res) => {
         "failures"
       );
 
-      // 🔥 Clean up invalid tokens
+
+      /////////////////////////// 🔥 Clean up invalid tokens
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const failedToken = tokens[idx];
@@ -118,6 +120,7 @@ app.post("/api/send-alert", async (req, res) => {
     res.status(500).send({ error: "Failed to send alert" });
   }
 });
+
 
 
 
