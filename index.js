@@ -75,21 +75,20 @@ app.post("/api/send-alert", async (req, res) => {
     const tokens = snapshot.docs.map((doc) => doc.id);
 
     if (tokens.length > 0) {
+      const messaging = admin.messaging();
       const payload = {
         notification: {
           title: type === "panic" ? "Lockdown Alert!" : "Suspicious Alert",
-          body: type === "panic"
-            ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
-            : message,
+          body:
+            type === "panic"
+              ? "This is a Lockdown. Please follow the Lockdown Procedure Immediately."
+              : message,
         },
+        tokens: tokens,
       };
 
-      // Send push notifications to all devices
-      const response = await admin.messaging().sendMulticast({
-        tokens: tokens,
-        ...payload,
-      });
-
+      // ✅ Use new API
+      const response = await messaging.sendEachForMulticast(payload);
       console.log(
         "Push notifications sent:",
         response.successCount,
@@ -101,7 +100,7 @@ app.post("/api/send-alert", async (req, res) => {
 
     res.send({ success: true, id: alertRef.id });
   } catch (err) {
-    console.error(err);
+    console.error("Failed to send alert:", err);
     res.status(500).send({ error: "Failed to send alert" });
   }
 });
