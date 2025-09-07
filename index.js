@@ -163,6 +163,27 @@ app.post("/api/clear-alerts", async (req, res) => {
 });
 
 // ----------------------------
+// ✅ New: Set login state (for Admin/User)
+app.post("/api/set-login-state", async (req, res) => {
+  const { username, isLoggedIn } = req.body;
+  if (!username) return res.status(400).send({ error: "Username missing" });
+
+  try {
+    const userRef = db.collection("users").doc(username);
+    await userRef.set({ isLoggedIn }, { merge: true });
+
+    res.send({ success: true });
+  } catch (err) {
+    console.error("Failed to update login state:", err);
+    res.status(500).send({ error: "Failed to update login state" });
+  }
+});
+
+
+
+
+
+// ----------------------------
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
