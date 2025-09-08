@@ -163,29 +163,37 @@ app.post("/api/clear-alerts", async (req, res) => {
 });
 
 // ----------------------------
-// ✅ Fix: Set login state (update existing user by username)
-app.post("/api/set-login-state", async (req, res) => {
-  const { username, isLoggedIn } = req.body;
-  if (!username) return res.status(400).send({ error: "Username missing" });
+// ✅ New endpoint: login user if not already logged in
+app.post("/api/login-user", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).send({ error: "Missing credentials" });
 
   try {
     const usersRef = db.collection("users");
-    const snapshot = await usersRef.where("username", "==", username).get();
+    const q = await usersRef
+      .where("username", "==", username)
+      .where("password", "==", password)
+      .get();
 
-    if (snapshot.empty) {
-      return res.status(404).send({ error: "User not found" });
+    if (q.empty) return res.status(400).send({ error: "Invalid username or password" });
+
+    const userDoc = q.docs[0];
+    const userData = userDoc.data();
+
+    if (userData.isLoggedIn) {
+      return res.status(403).send({ error: "User already logged in on another device" });
     }
 
-    // Update the first matching user doc
-    const userDoc = snapshot.docs[0];
-    await userDoc.ref.update({ isLoggedIn });
+    // ✅ Atomically mark as logged in
+    await db.collection("users").doc(userDoc.id).set({ isLoggedIn: true }, { merge: true });
 
-    res.send({ success: true });
+    res.send({ success: true, username: userData.username, userId: userDoc.id });
   } catch (err) {
-    console.error("Failed to update login state:", err);
-    res.status(500).send({ error: "Failed to update login state" });
+    console.error(err);
+    res.status(500).send({ error: "Login failed" });
   }
 });
+
 
 // ----------------------------
 // Start server
