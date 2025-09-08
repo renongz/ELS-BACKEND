@@ -163,14 +163,22 @@ app.post("/api/clear-alerts", async (req, res) => {
 });
 
 // ----------------------------
-// ✅ New: Set login state (for Admin/User)
+// ✅ Fix: Set login state (update existing user by username)
 app.post("/api/set-login-state", async (req, res) => {
   const { username, isLoggedIn } = req.body;
   if (!username) return res.status(400).send({ error: "Username missing" });
 
   try {
-    const userRef = db.collection("users").doc(username);
-    await userRef.set({ isLoggedIn }, { merge: true });
+    const usersRef = db.collection("users");
+    const snapshot = await usersRef.where("username", "==", username).get();
+
+    if (snapshot.empty) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    // Update the first matching user doc
+    const userDoc = snapshot.docs[0];
+    await userDoc.ref.update({ isLoggedIn });
 
     res.send({ success: true });
   } catch (err) {
@@ -178,10 +186,6 @@ app.post("/api/set-login-state", async (req, res) => {
     res.status(500).send({ error: "Failed to update login state" });
   }
 });
-
-
-
-
 
 // ----------------------------
 // Start server
